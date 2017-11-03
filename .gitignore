@@ -1,0 +1,5 @@
+[gcc]
+**/*.o
+
+[tcp_stack]
+tcp_stack

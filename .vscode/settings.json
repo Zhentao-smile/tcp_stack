@@ -1,0 +1,12 @@
+{
+    "files.exclude": {
+        "**/*.o": true,
+        "**/*.so": true,
+        "**/.vscode": false
+    },
+    "C_Cpp.clang_format_sortIncludes": true,
+    "files.associations": {
+        "arpcache.h": "c",
+        "base.h": "c"
+    }
+}

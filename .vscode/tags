@@ -1,0 +1,31 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+CLI	../topo/tcp_topo.py	/^from mininet.cli import CLI$/;"	kind:namespace	line:5
+Mininet	../topo/tcp_topo.py	/^from mininet.net import Mininet$/;"	kind:namespace	line:4
+TCPTopo	../topo/tcp_topo.py	/^class TCPTopo(Topo):$/;"	kind:class	line:7
+Topo	../topo/tcp_topo.py	/^from mininet.topo import Topo$/;"	kind:namespace	line:3
+build	../topo/tcp_topo.py	/^    def build(self):$/;"	kind:member	line:8
+client.py	../client.py	1;"	kind:file	line:1
+data	../client.py	/^data = string.digits + string.lowercase + string.uppercase$/;"	kind:variable	line:8
+data	../server.py	/^        data = 'server echoes: ' + data$/;"	kind:variable	line:24
+data	../server.py	/^    data = cs.recv(1000)$/;"	kind:variable	line:22
+data	../server.py	/^data = string.digits + string.lowercase + string.uppercase$/;"	kind:variable	line:8
+net	../topo/tcp_topo.py	/^    net = Mininet(topo = topo, controller = None) $/;"	kind:variable	line:16
+port	../server.py	/^port = int(sys.argv[1])$/;"	kind:variable	line:13
+s	../client.py	/^s = socket.socket()$/;"	kind:variable	line:12
+s	../server.py	/^s = socket.socket()$/;"	kind:variable	line:10
+server.py	../server.py	1;"	kind:file	line:1
+sleep	../client.py	/^from time import sleep$/;"	kind:namespace	line:6
+sleep	../server.py	/^from time import sleep$/;"	kind:namespace	line:6
+socket	../client.py	/^import socket$/;"	kind:namespace	line:5
+socket	../server.py	/^import socket$/;"	kind:namespace	line:5
+string	../client.py	/^import string$/;"	kind:namespace	line:4
+string	../server.py	/^import string$/;"	kind:namespace	line:4
+sys	../client.py	/^import sys$/;"	kind:namespace	line:3
+sys	../server.py	/^import sys$/;"	kind:namespace	line:3
+tcp_topo.py	../topo/tcp_topo.py	1;"	kind:file	line:1
+topo	../topo/tcp_topo.py	/^    topo = TCPTopo()$/;"	kind:variable	line:15
