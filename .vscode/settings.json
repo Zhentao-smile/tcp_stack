@@ -2,6 +2,8 @@
     "files.exclude": {
         "**/*.o": true,
         "**/*.so": true,
+        "**/tcp_stack": true,
+        "**/tcp_stack-reference": true,
         "**/.vscode": false
     },
     "C_Cpp.clang_format_sortIncludes": true,
