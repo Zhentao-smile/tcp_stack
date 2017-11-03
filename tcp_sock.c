@@ -99,21 +99,22 @@ void free_tcp_sock(struct tcp_sock *tsk)
 struct tcp_sock *tcp_sock_lookup_established(u32 saddr, u32 daddr, u16 sport, u16 dport)
 {
 	// fprintf(stdout, "TODO:[tcp_sock.c][tcp_sock_lookup_established] implement this function please.\n");
-	fprintf(stdout, "[YU] DEBUG: lookup a tcp sock in established table.\n");
+	
 	struct list_head* list;
 	struct tcp_sock* tsk;
 	int hash;
-	
+
 	hash = tcp_hash_function(saddr, daddr, sport, dport);
 	list = &tcp_established_sock_table[hash];
 
-	list_for_each_entry(tsk, list, list){
+	list_for_each_entry(tsk, list, hash_list){
 		if(tsk->sk_sip == saddr && tsk->sk_dip == daddr && \
 		   tsk->sk_sport == sport && tsk->sk_dport == dport){
+			fprintf(stdout, "[YU] DEBUG: find a tcp sock in established table.\n");
 			return tsk;
 		}
 	}
-	
+	fprintf(stdout, "[YU] DEBUG: Not find a tcp sock in established table.\n");
 	return NULL;
 }
 
@@ -123,19 +124,20 @@ struct tcp_sock *tcp_sock_lookup_established(u32 saddr, u32 daddr, u16 sport, u1
 struct tcp_sock *tcp_sock_lookup_listen(u32 saddr, u16 sport)
 {
 	// fprintf(stdout, "TODO:[tcp_sock.c][tcp_sock_lookup_listen] implement this function please.\n");
-	fprintf(stdout, "[YU] DEBUG: lookup a tcp sock in listen table.\n");
+	
 	struct list_head* list;
 	struct tcp_sock* tsk;
 	int hash;
-	
-	hash = tcp_hash_function(saddr, 0, sport, 0);
-	list = &tcp_established_sock_table[hash];
 
-	list_for_each_entry(tsk, list, list){
-		if(tsk->sk_sip == saddr && tsk->sk_sport == sport){
+	hash = tcp_hash_function(0, 0, sport, 0);
+	list = &tcp_listen_sock_table[hash];
+	list_for_each_entry(tsk, list, hash_list){
+		if(tsk->sk_sport == sport){
+			fprintf(stdout, "[YU] DEBUG: find a tcp sock in listen table.\n");
 			return tsk;
 		}
 	}
+	fprintf(stdout, "[YU] DEBUG: Not find a tcp sock in listen table.\n");
 	return NULL;
 }
 
@@ -227,11 +229,13 @@ int tcp_hash(struct tcp_sock *tsk)
 	if (tsk->state == TCP_LISTEN) {
 		hash = tcp_hash_function(0, 0, tsk->sk_sport, 0);
 		list = &tcp_listen_sock_table[hash];
+		fprintf(stdout, "[YU] DEBUG: tcp_hash [listen] [%d].\n", hash);
 	}
 	else {
 		int hash = tcp_hash_function(tsk->sk_sip, tsk->sk_dip, \
 				tsk->sk_sport, tsk->sk_dport); 
 		list = &tcp_established_sock_table[hash];
+		fprintf(stdout, "[YU] DEBUG: tcp_hash [established] [%d].\n", hash);
 
 		struct tcp_sock *tmp;
 		list_for_each_entry(tmp, list, hash_list) {
@@ -244,6 +248,7 @@ int tcp_hash(struct tcp_sock *tsk)
 	}
 
 	list_add_head(&tsk->hash_list, list);
+	fprintf(stdout, "[YU] DEBUG: tcp_hash table is empty: %d.\n", list_empty(list));
 	tcp_sock_inc_ref_cnt(tsk);
 
 	return 0;
