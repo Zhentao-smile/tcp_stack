@@ -15,7 +15,47 @@
 //    is determined).
 void tcp_state_listen(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 {
-	fprintf(stdout, "TODO: implement this function please.\n");
+	// fprintf(stdout, "TODO:[tcp_in.c][tcp_state_listen] implement this function please.\n");
+	struct tcp_sock* c_tsk;
+
+	c_tsk = alloc_tcp_sock();
+	c_tsk->sk_sip = cb->daddr;
+	c_tsk->sk_dip = cb->saddr;
+	c_tsk->sk_sport = cb->dport;
+	c_tsk->sk_dport = cb->sport;
+	fprintf(stdout, "[YU] DEBUG: sip:"IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_sip));
+	fprintf(stdout, "[YU] DEBUG: dip:"IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_dip));
+	fprintf(stdout, "[YU] DEBUG: sport: %u.\n", tsk->sk_sport);
+	fprintf(stdout, "[YU] DEBUG: dport: %u.\n", tsk->sk_dport);
+	fprintf(stdout, "[YU] DEBUG: sip:"IP_FMT".\n", LE_IP_FMT_STR(c_tsk->sk_sip));
+	fprintf(stdout, "[YU] DEBUG: dip:"IP_FMT".\n", LE_IP_FMT_STR(c_tsk->sk_dip));
+	fprintf(stdout, "[YU] DEBUG: sport: %u.\n", c_tsk->sk_sport);
+	fprintf(stdout, "[YU] DEBUG: dport: %u.\n", c_tsk->sk_dport);
+	fprintf(stdout, "[YU] DEBUG: dport: %u.\n", htons(c_tsk->sk_dport));
+	int pkt_size = ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE;
+	char *new_packet = malloc(pkt_size);
+	if (!new_packet) {
+		log(ERROR, "malloc tcp control packet failed.");
+		return ;
+	}
+
+	struct iphdr *ip = packet_to_ip_hdr(new_packet);
+	struct tcphdr *tcp = (struct tcphdr *)((char *)ip + IP_BASE_HDR_SIZE);
+
+	u16 tot_len = IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE;
+	ip_init_hdr(ip, c_tsk->sk_sip, c_tsk->sk_dip, tot_len, IPPROTO_TCP);
+	tcp->sport = htons(c_tsk->sk_sport);
+	tcp->dport = htons(c_tsk->sk_dport);
+	tcp->ack = htonl(cb->seq);
+	tcp->off = TCP_HDR_OFFSET;
+	tcp->flags = TCP_SYN | TCP_ACK;
+	tcp->checksum = tcp_checksum(ip, tcp);
+	ip_send_packet(new_packet, pkt_size);
+
+	if(tcp_hash(c_tsk)){
+		log(ERROR, "insert into established_table failed.");
+		return;
+	}
 }
 
 // handling incoming packet for TCP_CLOSED state, by replying TCP_RST
@@ -31,7 +71,7 @@ void tcp_state_closed(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 // reply with TCP_RST.
 void tcp_state_syn_sent(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 {
-	fprintf(stdout, "TODO: implement this function please.\n");
+	fprintf(stdout, "TODO:[tcp_in.c][tcp_state_syn_sent] implement this function please.\n");
 }
 
 // update the snd_wnd of tcp_sock
@@ -60,7 +100,7 @@ static inline void tcp_update_window_safe(struct tcp_sock *tsk, struct tcp_cb *c
 //    queue.
 void tcp_state_syn_recv(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 {
-	fprintf(stdout, "TODO: implement this function please.\n");
+	fprintf(stdout, "TODO:[tcp_in.c][tcp_state_syn_recv] implement this function please.\n");
 }
 
 #ifndef max
@@ -85,7 +125,7 @@ static inline int is_tcp_seq_valid(struct tcp_sock *tsk, struct tcp_cb *cb)
 // tcp_sock_read (wait_recv)
 int tcp_recv_data(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 {
-	fprintf(stdout, "TODO: implement this function please.\n");
+	fprintf(stdout, "TODO:[tcp_in.c][tcp_recv_data] implement this function please.\n");
 
 	return 0;
 }
@@ -110,5 +150,26 @@ int tcp_recv_data(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 //  11. at last, do not forget to reply with TCP_ACK if the connection is alive.
 void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 {
-	fprintf(stdout, "TODO: implement this function please.\n");
+	// fprintf(stdout, "TODO:[tcp_in.c][tcp_process] implement this function please.\n");
+	switch(tsk->state)
+	{
+		case TCP_CLOSED:
+			fprintf(stdout, "[YU] DEBUG: TCP state is TCP_CLOSED.\n");
+			tcp_state_closed(tsk, cb, packet);
+			return;
+			break;
+		case TCP_LISTEN:
+			fprintf(stdout, "[YU] DEBUG: TCP state is TCP_LISTEN.\n");
+			tcp_state_listen(tsk, cb, packet);
+			return;
+			break;
+		case TCP_SYN_SENT:
+			fprintf(stdout, "[YU] DEBUG: TCP state is TCP_SYN_SENT.\n");
+			tcp_state_syn_sent(tsk, cb, packet);
+			return;
+			break;
+		default:
+			fprintf(stdout, "[YU] DEBUG: TCP state is default.\n");
+			break;
+	}
 }
