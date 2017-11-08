@@ -23,15 +23,15 @@ void tcp_state_listen(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 	c_tsk->sk_dip = cb->saddr;
 	c_tsk->sk_sport = cb->dport;
 	c_tsk->sk_dport = cb->sport;
-	fprintf(stdout, "[YU] DEBUG: sip:"IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_sip));
-	fprintf(stdout, "[YU] DEBUG: dip:"IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_dip));
-	fprintf(stdout, "[YU] DEBUG: sport: %u.\n", tsk->sk_sport);
-	fprintf(stdout, "[YU] DEBUG: dport: %u.\n", tsk->sk_dport);
-	fprintf(stdout, "[YU] DEBUG: sip:"IP_FMT".\n", LE_IP_FMT_STR(c_tsk->sk_sip));
-	fprintf(stdout, "[YU] DEBUG: dip:"IP_FMT".\n", LE_IP_FMT_STR(c_tsk->sk_dip));
-	fprintf(stdout, "[YU] DEBUG: sport: %u.\n", c_tsk->sk_sport);
-	fprintf(stdout, "[YU] DEBUG: dport: %u.\n", c_tsk->sk_dport);
-	fprintf(stdout, "[YU] DEBUG: dport: %u.\n", htons(c_tsk->sk_dport));
+	// fprintf(stdout, "[YU] DEBUG: sip:"IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_sip));
+	// fprintf(stdout, "[YU] DEBUG: dip:"IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_dip));
+	// fprintf(stdout, "[YU] DEBUG: sport: %u.\n", tsk->sk_sport);
+	// fprintf(stdout, "[YU] DEBUG: dport: %u.\n", tsk->sk_dport);
+	// fprintf(stdout, "[YU] DEBUG: sip:"IP_FMT".\n", LE_IP_FMT_STR(c_tsk->sk_sip));
+	// fprintf(stdout, "[YU] DEBUG: dip:"IP_FMT".\n", LE_IP_FMT_STR(c_tsk->sk_dip));
+	// fprintf(stdout, "[YU] DEBUG: sport: %u.\n", c_tsk->sk_sport);
+	// fprintf(stdout, "[YU] DEBUG: dport: %u.\n", c_tsk->sk_dport);
+	// fprintf(stdout, "[YU] DEBUG: dport: %u.\n", htons(c_tsk->sk_dport));
 	int pkt_size = ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE;
 	char *new_packet = malloc(pkt_size);
 	if (!new_packet) {
@@ -51,6 +51,8 @@ void tcp_state_listen(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 	tcp->flags = TCP_SYN | TCP_ACK;
 	tcp->checksum = tcp_checksum(ip, tcp);
 	ip_send_packet(new_packet, pkt_size);
+
+	tcp_set_state(c_tsk, TCP_SYN_SENT);
 
 	if(tcp_hash(c_tsk)){
 		log(ERROR, "insert into established_table failed.");
@@ -144,7 +146,7 @@ int tcp_recv_data(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 //      SYN) should set this bit;
 //   8. process the ack of the packet: if it ACKs the outgoing SYN packet, 
 //      establish the connection; if it ACKs new data, update the window;
-//      if it ACKs the outgoing FIN packet, switch to correpsonding state;
+//      if it ACKs the outgoing FIN packet, switch to corresponding state;
 //   9. process the payload of the packet: call tcp_recv_data to receive data;
 //  10. if the TCP_FIN bit is set, update the TCP_STATE accordingly;
 //  11. at last, do not forget to reply with TCP_ACK if the connection is alive.
@@ -172,4 +174,38 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 			fprintf(stdout, "[YU] DEBUG: TCP state is default.\n");
 			break;
 	}
-}
+
+	if(!is_tcp_seq_valid(tsk, cb))
+	{
+		// drop
+	}
+	
+	if(cb->flags | TCP_RST)
+	{
+		//close this connection, and release the resources of this tcp sock
+		return;
+	}
+
+	if(cb->flags | TCP_SYN)
+	{
+		//reply with TCP_RST and close this connection
+		return;
+	}
+
+	if(!(cb->flags | TCP_ACK))
+	{
+		//drop
+		return;
+	}
+
+	//process the ack of the packet
+
+
+	if(cb->flags | TCP_FIN)
+	{
+		//update the TCP_STATE accordingly
+		return;
+	}
+
+	//reply with TCP_ACK if the connection is alive
+}	
