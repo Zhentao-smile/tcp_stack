@@ -64,7 +64,11 @@ struct tcp_sock *alloc_tcp_sock()
 	tsk->wait_send = alloc_wait_struct();
 	wait_init(tsk->wait_send);
 
-	// tsk->rcv_buf = alloc_ring_buffer();
+	tsk->iss = tcp_new_iss();
+
+	tsk->rcv_wnd = 65535;
+
+	tsk->rcv_buf = alloc_ring_buffer(tsk->rcv_wnd);
 
 	fprintf(stdout, "[YU] DEBUG: malloc a tcp_sock.\n");
 	return tsk;
@@ -103,19 +107,14 @@ struct tcp_sock *tcp_sock_lookup_established(u32 saddr, u32 daddr, u16 sport, u1
 	struct list_head* list;
 	struct tcp_sock* tsk;
 	int hash;
-	fprintf(stdout, "[YU] DEBUG: established table [sip] "IP_FMT".\n", LE_IP_FMT_STR(saddr));
-	fprintf(stdout, "[YU] DEBUG: established table [dip] "IP_FMT".\n", LE_IP_FMT_STR(daddr));
-	fprintf(stdout, "[YU] DEBUG: established table [sport] %u.\n", sport);
-	fprintf(stdout, "[YU] DEBUG: established table [dport] %u.\n", dport);
+	// fprintf(stdout, "[YU] DEBUG: established table [sip] "IP_FMT".\n", LE_IP_FMT_STR(saddr));
+	// fprintf(stdout, "[YU] DEBUG: established table [dip] "IP_FMT".\n", LE_IP_FMT_STR(daddr));
+	// fprintf(stdout, "[YU] DEBUG: established table [sport] %u.\n", sport);
+	// fprintf(stdout, "[YU] DEBUG: established table [dport] %u.\n", dport);
 
 	hash = tcp_hash_function(saddr, daddr, sport, dport);
 	list = &tcp_established_sock_table[hash];
-	fprintf(stdout, "[YU] DEBUG: established table empty [%d]\thash [%d].\n", list_empty(list), hash);
 	list_for_each_entry(tsk, list, hash_list){
-		fprintf(stdout, "[YU] DEBUG: established table [sip] "IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_sip));
-		fprintf(stdout, "[YU] DEBUG: established table [dip] "IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_dip));
-		fprintf(stdout, "[YU] DEBUG: established table [sport] %u.\n", tsk->sk_sport);
-		fprintf(stdout, "[YU] DEBUG: established table [dport] %u.\n", tsk->sk_dport);
 		if(tsk->sk_sip == saddr && tsk->sk_dip == daddr && \
 		   tsk->sk_sport == sport && tsk->sk_dport == dport){
 			fprintf(stdout, "[YU] DEBUG: find a tcp sock in established table.\n");
@@ -356,7 +355,7 @@ struct tcp_sock *tcp_sock_accept(struct tcp_sock *tsk)
 	{
 		fprintf(stdout, "[YU] DEBUG: tcp_sock_accept [empty].\n");
 		sleep_on(tsk->wait_accept);
-		fprintf(stdout, "[YU] DEBUG: tcp_sock_accept [empty].\n");
+		csk = tcp_sock_accept_dequeue(tsk);
 	}
 	
 	fprintf(stdout, "[YU] DEBUG: tcp_sock_accept.\n");
@@ -409,8 +408,14 @@ void tcp_sock_close(struct tcp_sock *tsk)
 // read data from rcv_buf. if rcv_buf is empty, sleeping on wait_rcv
 int tcp_sock_read(struct tcp_sock *tsk, char *buf, int len)
 {
-	fprintf(stdout, "TODO:[tcp_sock.c][tcp_sock_read] implement this function please.\n");
-	return 0;
+	// fprintf(stdout, "TODO:[tcp_sock.c][tcp_sock_read] implement this function please.\n");
+	if(ring_buffer_empty(tsk->rcv_buf))
+	{
+		fprintf(stdout, "[YU] DEBUG: reading rcv buffer.\n");
+		sleep_on(tsk->wait_recv);
+	}
+	fprintf(stdout, "[YU] DEBUG: reading rcv buffer.\n");
+	return read_ring_buffer(tsk->rcv_buf, buf, len);
 }
 
 // sending data by calling tcp_send_data
