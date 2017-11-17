@@ -202,6 +202,30 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		tcp_state_syn_recv(tsk, cb, packet);
 		return;
 	}
+	if(tsk->state == TCP_FIN_WAIT_1)
+	{
+		tcp_set_state(tsk, TCP_FIN_WAIT_2);
+		return;
+	}
+	if(tsk->state == TCP_LAST_ACK)
+	{
+		tcp_set_state(tsk, TCP_CLOSED);
+		tcp_unhash(tsk);
+		return;
+	}
+	if(tsk->state == TCP_FIN_WAIT_2)
+	{
+		if(cb->flags != (TCP_FIN | TCP_ACK))
+		{
+			//drop
+			return;
+		}
+		tsk->rcv_nxt = cb->seq_end;
+		tcp_send_control_packet(tsk, TCP_ACK);
+		//启动定时器
+		tcp_set_timewait_timer(tsk);
+		return;
+	}
 	//update rcv_wnd
 	tsk->rcv_wnd -= cb->pl_len;
 	//update snd_wnd
@@ -213,7 +237,13 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 	if(cb->flags & TCP_FIN)
 	{
 		//update the TCP_STATE accordingly
-		fprintf(stdout, "[YU] DEBUG: tcp flag is TCP_FIN.\n");
+		// fprintf(stdout, "[YU] DEBUG: tcp flag is TCP_FIN.\n");
+		tcp_set_state(tsk, TCP_CLOSE_WAIT);
+		tsk->rcv_nxt = cb->seq_end;
+		tcp_send_control_packet(tsk, TCP_ACK);
+		tcp_send_control_packet(tsk, TCP_FIN | TCP_ACK);
+		tcp_set_state(tsk, TCP_LAST_ACK);
+		return ;
 	}
 
 	//reply with TCP_ACK if the connection is alive
