@@ -48,6 +48,7 @@ struct tcp_sock *alloc_tcp_sock()
 	// fprintf(stdout, "TODO:[tcp_sock.c][alloc_tcp_sock] implement this function please.\n");
 	struct tcp_sock* tsk;
 	tsk = malloc(sizeof(struct tcp_sock));
+	memset(tsk, 0, sizeof(struct tcp_sock));
 	
 	init_list_head(&tsk->hash_list);
 	init_list_head(&tsk->bind_hash_list);
@@ -65,12 +66,15 @@ struct tcp_sock *alloc_tcp_sock()
 	wait_init(tsk->wait_send);
 
 	tsk->iss = tcp_new_iss();
+	tsk->snd_nxt = tsk->iss;
 
 	tsk->rcv_wnd = 65535;
+	tsk->snd_wnd = 65535;
 
 	tsk->rcv_buf = alloc_ring_buffer(tsk->rcv_wnd);
 
-	fprintf(stdout, "[YU] DEBUG: malloc a tcp_sock.\n");
+	tsk->state = TCP_CLOSED;
+
 	return tsk;
 }
 
@@ -107,21 +111,19 @@ struct tcp_sock *tcp_sock_lookup_established(u32 saddr, u32 daddr, u16 sport, u1
 	struct list_head* list;
 	struct tcp_sock* tsk;
 	int hash;
-	// fprintf(stdout, "[YU] DEBUG: established table [sip] "IP_FMT".\n", LE_IP_FMT_STR(saddr));
-	// fprintf(stdout, "[YU] DEBUG: established table [dip] "IP_FMT".\n", LE_IP_FMT_STR(daddr));
-	// fprintf(stdout, "[YU] DEBUG: established table [sport] %u.\n", sport);
-	// fprintf(stdout, "[YU] DEBUG: established table [dport] %u.\n", dport);
 
 	hash = tcp_hash_function(saddr, daddr, sport, dport);
 	list = &tcp_established_sock_table[hash];
 	list_for_each_entry(tsk, list, hash_list){
+		// fprintf(stdout, "[YU] DEBUG: established table [sip] "IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_sip));
+		// fprintf(stdout, "[YU] DEBUG: established table [dip] "IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_dip));
+		// fprintf(stdout, "[YU] DEBUG: established table [sport] %u.\n", tsk->sk_sport);
+		// fprintf(stdout, "[YU] DEBUG: established table [dport] %u.\n", tsk->sk_dport);
 		if(tsk->sk_sip == saddr && tsk->sk_dip == daddr && \
 		   tsk->sk_sport == sport && tsk->sk_dport == dport){
-			fprintf(stdout, "[YU] DEBUG: find a tcp sock in established table.\n");
 			return tsk;
 		}
 	}
-	fprintf(stdout, "[YU] DEBUG: Not find a tcp sock in established table.\n");
 	return NULL;
 }
 
@@ -140,11 +142,9 @@ struct tcp_sock *tcp_sock_lookup_listen(u32 saddr, u16 sport)
 	list = &tcp_listen_sock_table[hash];
 	list_for_each_entry(tsk, list, hash_list){
 		if(tsk->sk_sport == sport){
-			fprintf(stdout, "[YU] DEBUG: find a tcp sock in listen table.\n");
 			return tsk;
 		}
 	}
-	fprintf(stdout, "[YU] DEBUG: Not find a tcp sock in listen table.\n");
 	return NULL;
 }
 
@@ -236,13 +236,11 @@ int tcp_hash(struct tcp_sock *tsk)
 	if (tsk->state == TCP_LISTEN) {
 		hash = tcp_hash_function(0, 0, tsk->sk_sport, 0);
 		list = &tcp_listen_sock_table[hash];
-		fprintf(stdout, "[YU] DEBUG: tcp_hash [listen] [%d].\n", hash);
 	}
 	else {
 		int hash = tcp_hash_function(tsk->sk_sip, tsk->sk_dip, \
 				tsk->sk_sport, tsk->sk_dport); 
 		list = &tcp_established_sock_table[hash];
-		fprintf(stdout, "[YU] DEBUG: tcp_hash [established] [%d].\n", hash);
 
 		struct tcp_sock *tmp;
 		list_for_each_entry(tmp, list, hash_list) {
@@ -291,9 +289,21 @@ int tcp_sock_bind(struct tcp_sock *tsk, struct sock_addr *skaddr)
 //    means the connection is established.
 int tcp_sock_connect(struct tcp_sock *tsk, struct sock_addr *skaddr)
 {
-	fprintf(stdout, "TODO:[tcp_sock.c][tcp_sock_connect] implement this function please.\n");
+	// fprintf(stdout, "TODO:[tcp_sock.c][tcp_sock_connect] implement this function please.\n");
+	tsk->sk_dip = htonl(skaddr->ip);
+	tsk->sk_dport = htons(skaddr->port);
+	//TODO: 获取本机IP地址
+	tsk->sk_sip = htonl(inet_addr("10.0.0.2"));
+	tsk->sk_sport = htons(tcp_get_port());
 
-	return -1;
+	tcp_bind_hash(tsk);
+	
+	tcp_send_control_packet(tsk, TCP_SYN);
+	tcp_set_state(tsk, TCP_SYN_SENT);
+	tcp_hash(tsk);
+	sleep_on(tsk->wait_connect);
+	
+	return 0;
 }
 
 // set backlog (the maximum number of pending connection requst), switch the
@@ -307,7 +317,6 @@ int tcp_sock_listen(struct tcp_sock *tsk, int backlog)
 	tcp_set_state(tsk, TCP_LISTEN);
 	err = tcp_hash(tsk);
 
-	fprintf(stdout, "[YU] DEBUG: set tcp_sock to listen.\n");
 	return err;
 }
 
@@ -353,12 +362,11 @@ struct tcp_sock *tcp_sock_accept(struct tcp_sock *tsk)
 		csk = tcp_sock_accept_dequeue(tsk);
 	}else
 	{
-		fprintf(stdout, "[YU] DEBUG: tcp_sock_accept [empty].\n");
+		log(DEBUG, "waiting for incoming connection request.");
 		sleep_on(tsk->wait_accept);
 		csk = tcp_sock_accept_dequeue(tsk);
 	}
 	
-	fprintf(stdout, "[YU] DEBUG: tcp_sock_accept.\n");
 	return csk;
 }
 
@@ -409,18 +417,21 @@ void tcp_sock_close(struct tcp_sock *tsk)
 int tcp_sock_read(struct tcp_sock *tsk, char *buf, int len)
 {
 	// fprintf(stdout, "TODO:[tcp_sock.c][tcp_sock_read] implement this function please.\n");
+	int read_len = 0;
 	if(ring_buffer_empty(tsk->rcv_buf))
 	{
-		fprintf(stdout, "[YU] DEBUG: reading rcv buffer.\n");
 		sleep_on(tsk->wait_recv);
 	}
-	fprintf(stdout, "[YU] DEBUG: reading rcv buffer.\n");
-	return read_ring_buffer(tsk->rcv_buf, buf, len);
+	read_len = read_ring_buffer(tsk->rcv_buf, buf, len);
+	tsk->rcv_wnd += read_len;
+	log(DEBUG, "tcp_sock read %d bytes of data.", read_len);
+	return read_len;
 }
 
 // sending data by calling tcp_send_data
 int tcp_sock_write(struct tcp_sock *tsk, char *buf, int len)
 {
-	fprintf(stdout, "TODO:[tcp_sock.c][tcp_sock_write] implement this function please.\n");
+	// fprintf(stdout, "TODO:[tcp_sock.c][tcp_sock_write] implement this function please.\n");
+	tcp_send_data(tsk, buf, len);
 	return 0;
 }
