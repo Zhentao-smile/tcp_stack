@@ -30,6 +30,8 @@ void tcp_state_listen(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 
 	c_tsk->parent = tsk;
 
+	list_add_tail(&c_tsk->list, &tsk->listen_queue);
+
 	tcp_send_control_packet(c_tsk, TCP_SYN|TCP_ACK);
 
 	tcp_set_state(c_tsk, TCP_SYN_RECV);
@@ -92,7 +94,7 @@ static inline void tcp_update_window_safe(struct tcp_sock *tsk, struct tcp_cb *c
 void tcp_state_syn_recv(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 {
 	// fprintf(stdout, "TODO:[tcp_in.c][tcp_state_syn_recv] implement this function please.\n");
-	list_delete_entry(&tsk->listen_queue);
+	list_delete_entry(&tsk->list);
 	tcp_sock_accept_enqueue(tsk);
 	tcp_set_state(tsk, TCP_ESTABLISHED);
 	wake_up(tsk->parent->wait_accept);
@@ -153,7 +155,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 	switch(tsk->state)
 	{
 		case TCP_CLOSED:
-			fprintf(stdout, "[YU] DEBUG: TCP state is TCP_CLOSED.\n");
 			tcp_state_closed(tsk, cb, packet);
 			return;
 			break;
@@ -162,39 +163,39 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 			return;
 			break;
 		case TCP_SYN_SENT:
-			fprintf(stdout, "[YU] DEBUG: TCP state is TCP_SYN_SENT.\n");
 			tcp_state_syn_sent(tsk, cb, packet);
 			return;
 			break;
 		default:
-			// fprintf(stdout, "[YU] DEBUG: TCP state is default.\n");
 			break;
 	}
 
 	if(!is_tcp_seq_valid(tsk, cb))
 	{
 		// drop
-		fprintf(stdout, "[YU] DEBUG: tcp seq is invalid.\n");
-		return;
+		log(ERROR, "received tcp packet with invalid seq, drop it.");
+		return ;
 	}
 	
 	if(cb->flags & TCP_RST)
 	{
 		//close this connection, and release the resources of this tcp sock
-		fprintf(stdout, "[YU] DEBUG: tcp flag is TCP_RST.\n");
+		tcp_sock_close(tsk);
 		return;
 	}
 
 	if(cb->flags & TCP_SYN)
 	{
 		//reply with TCP_RST and close this connection
-		fprintf(stdout, "[YU] DEBUG: tcp flag is TCP_SYN.\n");
+		tcp_sock_close(tsk);
 		return;
 	}
 
-	if(!(cb->flags & TCP_ACK))
+	if(!(cb->flags & TCP_ACK) && !(cb->flags & TCP_FIN))
 	{
 		//drop
+		log(ERROR, "received tcp packet without ack, drop it.");
+		return ;
 	}
 	//process the ack of the packet
 	if(tsk->state == TCP_SYN_RECV)
@@ -218,11 +219,12 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		if(cb->flags != (TCP_FIN | TCP_ACK))
 		{
 			//drop
+			log(ERROR, "received tcp packet without FIN|ACK, drop it.");
 			return;
 		}
 		tsk->rcv_nxt = cb->seq_end;
 		tcp_send_control_packet(tsk, TCP_ACK);
-		//启动定时器
+		// start a timer
 		tcp_set_timewait_timer(tsk);
 		return;
 	}
@@ -237,7 +239,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 	if(cb->flags & TCP_FIN)
 	{
 		//update the TCP_STATE accordingly
-		// fprintf(stdout, "[YU] DEBUG: tcp flag is TCP_FIN.\n");
 		tcp_set_state(tsk, TCP_CLOSE_WAIT);
 		tsk->rcv_nxt = cb->seq_end;
 		tcp_send_control_packet(tsk, TCP_ACK);
@@ -247,7 +248,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 	}
 
 	//reply with TCP_ACK if the connection is alive
-	// fprintf(stdout, "[YU] DEBUG: tcp connection is alive.\n");
 	if(cb->flags != TCP_ACK)
 	{
 		tsk->rcv_nxt = cb->seq_end;

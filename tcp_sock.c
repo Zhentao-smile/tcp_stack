@@ -50,11 +50,8 @@ struct tcp_sock *alloc_tcp_sock()
 	tsk = malloc(sizeof(struct tcp_sock));
 	memset(tsk, 0, sizeof(struct tcp_sock));
 	
-	init_list_head(&tsk->hash_list);
-	init_list_head(&tsk->bind_hash_list);
 	init_list_head(&tsk->listen_queue);
 	init_list_head(&tsk->accept_queue);
-	init_list_head(&tsk->list);
 
 	tsk->wait_accept = alloc_wait_struct();
 	wait_init(tsk->wait_accept);
@@ -68,8 +65,8 @@ struct tcp_sock *alloc_tcp_sock()
 	tsk->iss = tcp_new_iss();
 	tsk->snd_nxt = tsk->iss;
 
-	tsk->rcv_wnd = 65535;
-	tsk->snd_wnd = 65535;
+	tsk->rcv_wnd = TCP_DEFAULT_WINDOW;
+	tsk->snd_wnd = TCP_DEFAULT_WINDOW;
 
 	tsk->rcv_buf = alloc_ring_buffer(tsk->rcv_wnd);
 
@@ -115,10 +112,6 @@ struct tcp_sock *tcp_sock_lookup_established(u32 saddr, u32 daddr, u16 sport, u1
 	hash = tcp_hash_function(saddr, daddr, sport, dport);
 	list = &tcp_established_sock_table[hash];
 	list_for_each_entry(tsk, list, hash_list){
-		// fprintf(stdout, "[YU] DEBUG: established table [sip] "IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_sip));
-		// fprintf(stdout, "[YU] DEBUG: established table [dip] "IP_FMT".\n", LE_IP_FMT_STR(tsk->sk_dip));
-		// fprintf(stdout, "[YU] DEBUG: established table [sport] %u.\n", tsk->sk_sport);
-		// fprintf(stdout, "[YU] DEBUG: established table [dport] %u.\n", tsk->sk_dport);
 		if(tsk->sk_sip == saddr && tsk->sk_dip == daddr && \
 		   tsk->sk_sport == sport && tsk->sk_dport == dport){
 			return tsk;
