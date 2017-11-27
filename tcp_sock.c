@@ -291,9 +291,10 @@ int tcp_sock_connect(struct tcp_sock *tsk, struct sock_addr *skaddr)
 
 	tcp_bind_hash(tsk);
 	
-	tcp_send_control_packet(tsk, TCP_SYN);
 	tcp_set_state(tsk, TCP_SYN_SENT);
-	tcp_hash(tsk);
+	tcp_hash(tsk);							//顺序很重要，先加入table中，再发送包
+	tcp_send_control_packet(tsk, TCP_SYN);	//否则在网络快CPU慢时，会出现table中找不到tcp_sock的情况
+	
 	sleep_on(tsk->wait_connect);
 	
 	return 0;
