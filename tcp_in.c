@@ -180,14 +180,17 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 	if(cb->flags & TCP_RST)
 	{
 		//close this connection, and release the resources of this tcp sock
-		tcp_sock_close(tsk);
+		tcp_set_state(tsk, TCP_CLOSED);
+		tcp_unhash(tsk);
 		return;
 	}
 
 	if(cb->flags & TCP_SYN)
 	{
 		//reply with TCP_RST and close this connection
-		tcp_sock_close(tsk);
+		tcp_send_reset(cb);
+		tcp_set_state(tsk, TCP_CLOSED);
+		tcp_unhash(tsk);
 		return;
 	}
 

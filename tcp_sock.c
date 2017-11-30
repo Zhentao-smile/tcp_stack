@@ -283,10 +283,11 @@ int tcp_sock_bind(struct tcp_sock *tsk, struct sock_addr *skaddr)
 int tcp_sock_connect(struct tcp_sock *tsk, struct sock_addr *skaddr)
 {
 	// fprintf(stdout, "TODO:[tcp_sock.c][tcp_sock_connect] implement this function please.\n");
+	iface_info_t* iface;
+	iface = list_entry(instance->iface_list.next, typeof(*iface), list);
 	tsk->sk_dip = htonl(skaddr->ip);
 	tsk->sk_dport = htons(skaddr->port);
-	//TODO: 获取本机IP地址
-	tsk->sk_sip = htonl(inet_addr("10.0.0.2"));
+	tsk->sk_sip = iface->ip;
 	tsk->sk_sport = htons(tcp_get_port());
 
 	tcp_bind_hash(tsk);
