@@ -229,6 +229,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		tcp_send_control_packet(tsk, TCP_ACK);
 		// start a timer
 		tcp_set_timewait_timer(tsk);
+		tcp_set_state(tsk, TCP_TIME_WAIT);
 		return;
 	}
 	//update rcv_wnd
