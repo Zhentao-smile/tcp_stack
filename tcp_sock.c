@@ -398,7 +398,7 @@ void tcp_sock_close(struct tcp_sock *tsk)
 		case TCP_SYN_SENT:
 			break;
 		case TCP_ESTABLISHED:
-			tcp_send_control_packet(tsk, TCP_FIN);
+			tcp_send_control_packet(tsk, TCP_FIN|TCP_ACK);
 			tcp_set_state(tsk, TCP_FIN_WAIT_1);
 			break;
 		case TCP_CLOSE_WAIT:
