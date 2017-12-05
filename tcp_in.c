@@ -194,7 +194,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		return;
 	}
 
-	if(!(cb->flags & TCP_ACK) && !(cb->flags & TCP_FIN))
+	if(!(cb->flags & TCP_ACK))
 	{
 		//drop
 		log(ERROR, "received tcp packet without ack, drop it.");
